@@ -2,8 +2,8 @@ from telethon import TelegramClient, sync
 import pandas as pd
 import datetime
 
-api_id = 1348029
-api_hash = '3c6e7f9cafaf26130ac6302da5f9614d'
+api_id = 'your_api_id' # api_id
+api_hash = 'your_api_hash' #'api_hash'
 group_username = 'C0ban_global' # Group name can be found in group link (Example group link : https://t.me/c0ban_global, group name = 'c0ban_global')
 client = TelegramClient('srinivas dasu', api_id, api_hash).start()
 participants = client.get_participants(group_username)
@@ -42,7 +42,8 @@ if len(chats):
         time.append(chat.date)
 data ={'message_id':message_id, 'message': message, 'id':sender, 'reply_to_msg_id':reply_to, 'time':time}
 df = pd.DataFrame(data)
-condit_data=pd.merge(userdetails,df,on='id')
+condit_data=pd.merge(userdetails,df,on='id') # merging the two data frames based on common column
+#condit_data=pd.merge(userdetails,df,left_on='id',right_on='sender_Id') # if two dataframes have different column names
 print(condit_data)
 
 print("------- message deatils-------")
@@ -50,9 +51,12 @@ print(df)
 
 messages =[]
 time = []
-destination_user_username='yogesh'
+destination_user_username='user_name_you_want_to_fetch_messages'
 entity=client.get_entity(destination_user_username)
-for message in client.iter_messages(group_username, search='c0ban',reverse=True,offset_date=datetime.datetime(2020,1,10),entity=entity):
+
+#revrse can be used when entity or id is not empty, so we need to have user_id or user_name to use reverse
+
+for message in client.iter_messages(group_username, search='c0ban',reverse=True,offset_date=datetime.datetime(2020,1,10),entity=entity): 
     messages.append(message.message) # get messages
     time.append(message.date) # get timestamp
 data ={'time':time, 'message':messages}
