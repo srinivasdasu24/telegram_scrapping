@@ -6,8 +6,8 @@ logging.basicConfig(format='[%(levelname) 5s/%(asctime)s] %(name)s: %(message)s'
 level=logging.WARNING)
 
 # Remember to use your own values from my.telegram.org!
-api_id = 1348029
-api_hash = '3c6e7f9cafaf26130ac6302da5f9614d'
+api_id = 'your_api_id'
+api_hash = 'your_api_hash'
 client = TelegramClient('session_name', api_id, api_hash)
 async def main():
     # Getting information about yourself
@@ -27,11 +27,11 @@ async def main():
     # You can send messages to yourself...
     await client.send_message('me', 'Hello, myself!')
     # ...to some chat ID
-    #await client.send_message(-100123456, 'Hello, group!')
+    await client.send_message(-100123456, 'Hello, group!')
     # ...to your contacts
-    #await client.send_message('917794015911', 'Hello, friend!')
+    await client.send_message('917794015911', 'Hello, friend!')
     # ...or even to any username
-    '''await client.send_message('TelethonChat', 'Hello, Telethon!')'''
+    await client.send_message('TelethonChat', 'Hello, Telethon!')
     # You can, of course, use markdown in your messages:
     message = await client.send_message(
     '917794015911',
