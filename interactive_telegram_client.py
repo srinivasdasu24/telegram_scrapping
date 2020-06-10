@@ -13,6 +13,10 @@ import pytz
 import pandas as pd
 import configparser
 import argparse
+from sqlalchemy import create_engine
+from sqlalchemy.types import NVARCHAR, Float, Integer, Unicode
+from sqlalchemy.dialects import postgresql, mysql
+from sqlalchemy import *
 from collections import defaultdict
 
 logging.basicConfig(level=logging.ERROR)
@@ -112,29 +116,84 @@ class InterActiveTelegramClient(TelegramClient):
         msg =''
         for user_id in self._id_s:
             if self.get_entity(user_id).username is None:
-                msg += "@"+str(user_id)+' ('+self.get_entity(user_id).first_name+(self.get_entity(user_id).last_name if self.get_entity(user_id).last_name is not None else '') + "), "
+                msg += "@"+self.get_entity(user_id).first_name+(self.get_entity(user_id).last_name if self.get_entity(user_id).last_name is not None else '') + ", "
             else:
                 msg +="@"+self.get_entity(user_id).username + ", "
-            #msg +="@"+str(user_id)+", "
-        msg += " Welcome to the Api testing telegram group"
+
+        msg += " Welcome to the Co-learning Lounge Telegram channel."
         self.send_message(self.__default_channel, msg)
 
     def previous_day_contributors(self):
         info = self.previous_day_group_info()
+        messages = []
+        user_name= []
+        user_id = []
+        datetime = []
+        first_name =[]
+        reply_to=[]
+        last_name=[]
+        message_id=[]
         for msg in info:
             if msg.message is not None:
                 if msg.from_id not in self.group_activity:
                     self.group_activity[msg.from_id]['first_name']=self.get_entity(msg.from_id).first_name
+                    first_name.append(self.get_entity(msg.from_id).first_name)
                     self.group_activity[msg.from_id]['last_name']=self.get_entity(msg.from_id).last_name
+                    last_name.append(self.get_entity(msg.from_id).last_name)
                     self.group_activity[msg.from_id]['user_name']=self.get_entity(msg.from_id).username
+                    user_name.append(self.get_entity(msg.from_id).username)
                     self.group_activity[msg.from_id]['messages']=[msg.message]
+                    messages.append(msg.message)
                     self.group_activity[msg.from_id]['datetime']=[msg.date]
+                    datetime.append(msg.date)
+                    message_id.append(msg.id)
+                    user_id.append(msg.from_id)
+                    reply_to.append(msg.reply_to_msg_id)
                 else:
                     self.group_activity[msg.from_id]['messages'].append(msg.message)
                     self.group_activity[msg.from_id]['datetime'].append(msg.date)
+                    first_name.append(self.get_entity(msg.from_id).first_name)
+                    last_name.append(self.get_entity(msg.from_id).last_name)
+                    user_name.append(self.get_entity(msg.from_id).username)
+                    messages.append(msg.message)
+                    datetime.append(msg.date)
+                    user_id.append(msg.from_id)
+                    message_id.append(msg.id)
+                    reply_to.append(msg.reply_to_msg_id)
+
+        for i in range(len(messages)):
+            if messages[i] is '':
+                messages[i]= ','
+        data ={'first_name' :first_name, 'last_name':last_name, 'user_name':user_name,'user_id':user_id, 'message':messages,'timestamp':datetime,'reply_to_msg_id':reply_to,'message_id':message_id}
+        tele_df = pd.DataFrame(data)
+        tele_df['date'] = [d.date() for d in tele_df['timestamp']]
+        tele_df['time'] = [d.time() for d in tele_df['timestamp']]
+        #print(tele_df)
         df=pd.DataFrame(self.group_activity)
         df=df.transpose()
-        print(df)
+        #df['messages'] = df.messages.apply(lambda x: '##'.join([str(i) for i in x]))
+        #print(type(df['messages']))
+        return tele_df
+
+    def mapping_df_types(self,df):
+        dtypedict = {}
+        for i, j in zip(df.columns, df.dtypes):
+            if "object" in str(j) and "message" in str(i): 
+                dtypedict.update({i: NVARCHAR(length=12000)})
+            else:
+                dtypedict.update({i: NVARCHAR(length=255)})
+            if "float" in str(j):
+                dtypedict.update({i: Float(precision=2, asdecimal=True)})
+            if "int" in str(j):
+                dtypedict.update({i: Integer()})
+        return dtypedict
+
+    def save_to_sql(self,df):
+        engine = create_engine("mysql+pymysql://{user}:{pw}@localhost/{db}"
+                       .format(user="telegram_user",
+                               pw="tele123",
+                               db="telegram"),pool_pre_ping=True)
+        df.to_sql(name='tele_chat', con = engine, if_exists = 'append', index=False,dtype=self.mapping_df_types(df))
                     
 
 
@@ -159,7 +218,7 @@ if __name__ == "__main__":
             client = InterActiveTelegramClient(args.session,args.api_id, args.api_hash,args.channel)
             client.profile()
             print("Previous Day contributors ...")
-            client.previous_day_contributors()
+            client.save_to_sql(client.previous_day_contributors())
             print("Welcome new members")
             client.welcome_to_group()
             client.disconnect()
